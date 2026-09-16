@@ -39,8 +39,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   ];
 
   void _press(String key) {
-    // This shell intentionally does not contain vault credentials or crypto.
-    // Calculator parsing and secure unlock are separate, testable modules.
+    // Credentials and cryptography never belong in the calculator surface.
+    // Expression evaluation and secure unlock remain separate modules.
     setState(() {
       if (key == 'C') {
         _display = '0';
@@ -54,49 +54,75 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              Expanded(
-                child: Align(
-                  alignment: Alignment.bottomRight,
-                  child: Semantics(
-                    label: 'Calculator display',
-                    value: _display,
-                    child: Text(
-                      _display,
-                      textAlign: TextAlign.right,
-                      style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w400),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxHeight < 620;
+            final padding = compact ? 12.0 : 20.0;
+            final gap = compact ? 8.0 : 12.0;
+
+            return Padding(
+              padding: EdgeInsets.all(padding),
+              child: Column(
+                children: [
+                  Expanded(
+                    flex: compact ? 2 : 3,
+                    child: Align(
+                      alignment: Alignment.bottomRight,
+                      child: Semantics(
+                        label: 'Calculator display',
+                        value: _display,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.bottomRight,
+                          child: Text(
+                            _display,
+                            textAlign: TextAlign.right,
+                            maxLines: 1,
+                            style: TextStyle(
+                              fontSize: compact ? 40 : 48,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                ),
-                itemCount: _keys.length,
-                itemBuilder: (context, index) {
-                  final key = _keys[index];
-                  return Semantics(
-                    button: true,
-                    label: key,
-                    child: FilledButton(
-                      onPressed: () => _press(key),
-                      style: FilledButton.styleFrom(shape: const CircleBorder()),
-                      child: Text(key, style: const TextStyle(fontSize: 24)),
+                  SizedBox(height: compact ? 12 : 24),
+                  Expanded(
+                    flex: compact ? 5 : 6,
+                    child: GridView.builder(
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 4,
+                        mainAxisSpacing: gap,
+                        crossAxisSpacing: gap,
+                        childAspectRatio: compact ? 1.7 : 1.25,
+                      ),
+                      itemCount: _keys.length,
+                      itemBuilder: (context, index) {
+                        final key = _keys[index];
+                        return Semantics(
+                          button: true,
+                          label: key,
+                          child: FilledButton(
+                            onPressed: () => _press(key),
+                            style: FilledButton.styleFrom(
+                              shape: const StadiumBorder(),
+                              padding: EdgeInsets.zero,
+                            ),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(key, style: const TextStyle(fontSize: 24)),
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
