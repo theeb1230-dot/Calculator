@@ -1,4 +1,5 @@
 import 'package:calculator_vault/main.dart';
+import 'package:flutter/material.dart' show Size;
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
