@@ -36,8 +36,8 @@ jobs:
         with:
           channel: stable
           cache: true
-      - name: Generate Android platform scaffold
-        run: flutter create --platforms=android --project-name calculator_vault .
+      - name: Require committed Android scaffold
+        run: test -f android/app/build.gradle.kts && test -f android/app/src/main/AndroidManifest.xml
       - name: Resolve dependencies
         run: flutter pub get
       - name: Build Android APK
@@ -52,8 +52,8 @@ jobs:
         with:
           channel: stable
           cache: true
-      - name: Generate iOS platform scaffold
-        run: flutter create --platforms=ios --project-name calculator_vault .
+      - name: Require committed iOS scaffold
+        run: test -f ios/Runner.xcodeproj/project.pbxproj && test -f ios/Runner/Info.plist
       - name: Resolve dependencies
         run: flutter pub get
       - name: Build iOS without code signing

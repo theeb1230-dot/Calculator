@@ -28,6 +28,23 @@ void main() {
       expect(engine.evaluateAndFormat('10÷4'), '2.5');
     });
 
+    test('preserves large integral display values', () {
+      expect(engine.format(1e20), '100000000000000000000');
+    });
+
+    test('supports scientific notation and continued evaluation', () {
+      expect(engine.evaluateAndFormat('1e3+2'), '1002');
+      expect(engine.evaluateAndFormat('1E-3×2'), '0.002');
+      final tiny = engine.evaluateAndFormat('1÷10000000000000');
+      expect(tiny.toLowerCase(), contains('e'));
+      expect(engine.evaluate('$tiny×2'), closeTo(2e-13, 1e-25));
+    });
+
+    test('rejects malformed scientific notation', () {
+      expect(() => engine.evaluate('1e'), throwsA(isA<CalculatorException>()));
+      expect(() => engine.evaluate('1e+'), throwsA(isA<CalculatorException>()));
+    });
+
     test('rejects division by zero and malformed expressions', () {
       expect(() => engine.evaluate('1÷0'), throwsA(isA<CalculatorException>()));
       expect(() => engine.evaluate('2+'), throwsA(isA<CalculatorException>()));
