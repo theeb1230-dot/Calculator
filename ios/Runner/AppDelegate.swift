@@ -34,9 +34,12 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    guard let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "CalculatorSecurity") else {
+      return
+    }
     let channel = FlutterMethodChannel(
       name: securityChannelName,
-      binaryMessenger: engineBridge.applicationRegistrar.messenger()
+      binaryMessenger: registrar.messenger()
     )
     channel.setMethodCallHandler { [weak self] call, result in
       guard call.method == "setProtectedContent",
