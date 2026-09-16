@@ -33,7 +33,14 @@ class CalculatorEngine {
       throw const CalculatorException('Result is not finite');
     }
     if (value == 0) return '0';
-    if (value == value.truncateToDouble()) return value.toInt().toString();
+
+    // Avoid double.toInt() here: values outside the platform integer range can
+    // saturate and produce a completely unrelated display value.
+    final magnitude = value.abs();
+    if (value == value.truncateToDouble() && magnitude < 1e21) {
+      return value.toStringAsFixed(0);
+    }
+
     final text = value.toStringAsPrecision(12);
     if (text.contains('e') || text.contains('E')) return text;
     return text.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
@@ -93,11 +100,13 @@ class _Parser {
     }
 
     final start = index;
+    var digitsBeforeOrAfterDot = 0;
     var dots = 0;
     while (index < source.length) {
       final code = source.codeUnitAt(index);
       final digit = code >= 48 && code <= 57;
       if (digit) {
+        digitsBeforeOrAfterDot++;
         index++;
       } else if (source[index] == '.') {
         dots++;
@@ -107,11 +116,26 @@ class _Parser {
         break;
       }
     }
-    if (start == index || source.substring(start, index) == '.') {
-      _fail('Expected number');
+    if (digitsBeforeOrAfterDot == 0) _fail('Expected number');
+
+    if (index < source.length &&
+        (source[index] == 'e' || source[index] == 'E')) {
+      index++;
+      if (index < source.length &&
+          (source[index] == '+' || source[index] == '-')) {
+        index++;
+      }
+      final exponentStart = index;
+      while (index < source.length) {
+        final code = source.codeUnitAt(index);
+        if (code < 48 || code > 57) break;
+        index++;
+      }
+      if (exponentStart == index) _fail('Malformed exponent');
     }
+
     final value = double.tryParse(source.substring(start, index));
-    if (value == null) _fail('Malformed number');
+    if (value == null || !value.isFinite) _fail('Malformed number');
     return _applyPercent(value);
   }
 
