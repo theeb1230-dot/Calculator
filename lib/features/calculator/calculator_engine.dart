@@ -112,7 +112,7 @@ class _Parser {
     }
     final value = double.tryParse(source.substring(start, index));
     if (value == null) _fail('Malformed number');
-    return _applyPercent(value!);
+    return _applyPercent(value);
   }
 
   double _applyPercent(double value) {
