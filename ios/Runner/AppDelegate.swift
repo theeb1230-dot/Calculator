@@ -19,13 +19,13 @@ import UIKit
     )
     NotificationCenter.default.addObserver(
       self,
-      selector: #selector(applicationWillResignActive),
+      selector: #selector(handleWillResignActiveNotification),
       name: UIApplication.willResignActiveNotification,
       object: nil
     )
     NotificationCenter.default.addObserver(
       self,
-      selector: #selector(applicationDidBecomeActive),
+      selector: #selector(handleDidBecomeActiveNotification),
       name: UIApplication.didBecomeActiveNotification,
       object: nil
     )
@@ -58,11 +58,11 @@ import UIKit
     refreshPrivacyShield()
   }
 
-  @objc private func applicationWillResignActive() {
+  @objc private func handleWillResignActiveNotification() {
     if protectedContentEnabled { showPrivacyShield() }
   }
 
-  @objc private func applicationDidBecomeActive() {
+  @objc private func handleDidBecomeActiveNotification() {
     refreshPrivacyShield()
   }
 
