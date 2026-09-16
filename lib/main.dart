@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'features/calculator/calculator_controller.dart';
+
 void main() => runApp(const CalculatorVaultApp());
 
 class CalculatorVaultApp extends StatelessWidget {
@@ -28,7 +30,7 @@ class CalculatorScreen extends StatefulWidget {
 }
 
 class _CalculatorScreenState extends State<CalculatorScreen> {
-  String _display = '0';
+  final _controller = CalculatorController();
 
   static const _keys = <String>[
     'C', '(', ')', '÷',
@@ -39,19 +41,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   ];
 
   void _press(String key) {
-    // Credentials and cryptography never belong in the calculator surface.
-    // Expression evaluation and secure unlock remain separate modules.
-    setState(() {
-      if (key == 'C') {
-        _display = '0';
-      } else if (key != '=') {
-        _display = _display == '0' ? key : '$_display$key';
-      }
-    });
+    // Vault authentication remains a separate boundary. This public surface
+    // only delegates calculator state and expression evaluation.
+    setState(() => _controller.press(key));
   }
 
   @override
   Widget build(BuildContext context) {
+    final display = _controller.display;
     return Scaffold(
       body: SafeArea(
         child: LayoutBuilder(
@@ -70,12 +67,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                       alignment: Alignment.bottomRight,
                       child: Semantics(
                         label: 'Calculator display',
-                        value: _display,
+                        value: display,
                         child: FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.bottomRight,
                           child: Text(
-                            _display,
+                            display,
                             textAlign: TextAlign.right,
                             maxLines: 1,
                             style: TextStyle(
