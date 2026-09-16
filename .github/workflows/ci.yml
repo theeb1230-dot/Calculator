@@ -6,36 +6,9 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  scaffold-bootstrap:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-      - name: Generate official Flutter Android and iOS projects when absent
-        run: |
-          if [ ! -d android ] || [ ! -d ios ]; then
-            flutter create --platforms=android,ios --org com.theeb --project-name calculator_vault .
-          fi
-      - name: Commit generated platform projects
-        run: |
-          if ! git diff --quiet || [ -n "$(git ls-files --others --exclude-standard android ios)" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add android ios .metadata
-            git commit -m "build: commit Flutter Android and iOS platform projects"
-            git push origin HEAD:${{ github.event.pull_request.head.ref }}
-          fi
-
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
