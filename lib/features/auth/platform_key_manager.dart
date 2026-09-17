@@ -2,9 +2,6 @@ import 'package:flutter/services.dart';
 
 import 'key_management.dart';
 
-/// Method-channel implementation whose native side owns key generation and
-/// protected key material. Dart receives opaque handles and operation output,
-/// never a vault master key.
 final class PlatformVaultKeyManager implements VaultKeyManager {
   PlatformVaultKeyManager({MethodChannel? channel})
       : _channel = channel ?? const MethodChannel('calculator/platform_keys');
@@ -33,29 +30,24 @@ final class PlatformVaultKeyManager implements VaultKeyManager {
   }
 
   @override
-  Future<Uint8List> unwrapDataKey({
-    required VaultKeyHandle handle,
-    required Uint8List wrappedDataKey,
-    required Uint8List context,
-  }) async {
+  Future<WrappedDataKey> createWrappedDataKey({required VaultKeyHandle handle, required Uint8List context}) async {
     _requireValid(handle);
-    if (wrappedDataKey.isEmpty || context.isEmpty) {
-      throw ArgumentError('Wrapped key and authenticated context are required');
-    }
-    final result = await _channel.invokeMethod<Uint8List>('unwrapDataKey', {
-      'handle': handle.id,
-      'wrappedDataKey': wrappedDataKey,
-      'context': context,
-    });
-    if (result == null || result.isEmpty) {
-      throw StateError('Platform key operation failed closed');
-    }
+    if (context.isEmpty) throw ArgumentError('Authenticated context is required');
+    final result = await _channel.invokeMethod<Uint8List>('createWrappedDataKey', {'handle': handle.id, 'context': context});
+    if (result == null || result.length < 60) throw StateError('Platform key operation failed closed');
+    return WrappedDataKey(result);
+  }
+
+  @override
+  Future<Uint8List> unwrapDataKey({required VaultKeyHandle handle, required WrappedDataKey wrappedDataKey, required Uint8List context}) async {
+    _requireValid(handle);
+    if (wrappedDataKey.bytes.length < 60 || context.isEmpty) throw ArgumentError('Wrapped key and authenticated context are required');
+    final result = await _channel.invokeMethod<Uint8List>('unwrapDataKey', {'handle': handle.id, 'wrappedDataKey': wrappedDataKey.bytes, 'context': context});
+    if (result == null || result.length != 32) throw StateError('Platform key operation failed closed');
     return result;
   }
 
   static void _requireValid(VaultKeyHandle handle) {
-    if (!isValidVaultKeyHandle(handle.id)) {
-      throw ArgumentError.value(handle.id, 'handle', 'Invalid opaque key handle');
-    }
+    if (!isValidVaultKeyHandle(handle.id)) throw ArgumentError.value(handle.id, 'handle', 'Invalid opaque key handle');
   }
 }
