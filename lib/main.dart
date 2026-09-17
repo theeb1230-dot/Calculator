@@ -127,6 +127,6 @@ class _ProtectedAreaState extends State<ProtectedArea> with WidgetsBindingObserv
   }
   @override
   Widget build(BuildContext context) => widget.session.isUnlocked
-      ? const Scaffold(appBar: AppBar(title: Text('Files')), body: Center(child: Text('No files yet')))
+      ? Scaffold(appBar: AppBar(title: const Text('Files')), body: const Center(child: Text('No files yet')))
       : const SizedBox.shrink();
 }
