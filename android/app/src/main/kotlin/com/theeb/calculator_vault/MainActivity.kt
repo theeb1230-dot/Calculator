@@ -3,6 +3,7 @@ package com.theeb.calculator
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import android.security.keystore.StrongBoxUnavailableException
 import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -16,6 +17,7 @@ class MainActivity : FlutterActivity() {
         const val SECURITY_CHANNEL = "com.theeb.calculator/security"
         const val KEY_CHANNEL = "calculator/platform_keys"
         const val KEYSTORE = "AndroidKeyStore"
+        const val HANDLE_PREFIX = "vault-key-"
         const val ALIAS_PREFIX = "calculator_vault_"
     }
 
@@ -44,12 +46,7 @@ class MainActivity : FlutterActivity() {
                 when (call.method) {
                     "createVaultKey" -> result.success(createVaultKey())
                     "containsVaultKey" -> result.success(containsVaultKey(call.arguments as? String))
-                    "destroyVaultKey" -> {
-                        destroyVaultKey(call.arguments as? String)
-                        result.success(null)
-                    }
-                    // Data-key wrapping/unwrap is intentionally fail-closed until the
-                    // authenticated envelope implementation is wired to this native key.
+                    "destroyVaultKey" -> { destroyVaultKey(call.arguments as? String); result.success(null) }
                     "unwrapDataKey" -> result.error("NOT_IMPLEMENTED", "Native authenticated unwrap is not wired yet", null)
                     else -> result.notImplemented()
                 }
@@ -62,37 +59,38 @@ class MainActivity : FlutterActivity() {
     private fun createVaultKey(): String {
         val id = UUID.randomUUID().toString().replace("-", "")
         val alias = ALIAS_PREFIX + id
+        fun spec(strongBox: Boolean): KeyGenParameterSpec {
+            val builder = KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setKeySize(256)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && strongBox) builder.setIsStrongBoxBacked(true)
+            return builder.build()
+        }
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE)
-        val builder = KeyGenParameterSpec.Builder(
-            alias,
-            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-        ).setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-            .setKeySize(256)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            // Prefer StrongBox when available; retry without it when hardware lacks it.
             try {
-                generator.init(builder.setIsStrongBoxBacked(true).build())
-                generator.generateKey()
-                return id
-            } catch (_: Exception) {
-                // Fall through to Android Keystore-backed generation.
+                generator.init(spec(true)); generator.generateKey(); return HANDLE_PREFIX + id
+            } catch (_: StrongBoxUnavailableException) {
+                // Documented fallback: hardware-backed StrongBox is optional.
             }
         }
-        generator.init(builder.setIsStrongBoxBacked(false).build())
-        generator.generateKey()
-        return id
+        generator.init(spec(false)); generator.generateKey()
+        return HANDLE_PREFIX + id
     }
 
-    private fun containsVaultKey(id: String?): Boolean {
-        if (!validId(id)) return false
+    private fun rawId(handle: String?): String? {
+        if (handle == null || !handle.matches(Regex("^vault-key-[a-f0-9]{32}$"))) return null
+        return handle.removePrefix(HANDLE_PREFIX)
+    }
+
+    private fun containsVaultKey(handle: String?): Boolean {
+        val id = rawId(handle) ?: return false
         return KeyStore.getInstance(KEYSTORE).apply { load(null) }.containsAlias(ALIAS_PREFIX + id)
     }
 
-    private fun destroyVaultKey(id: String?) {
-        require(validId(id)) { "Invalid opaque key handle" }
+    private fun destroyVaultKey(handle: String?) {
+        val id = requireNotNull(rawId(handle)) { "Invalid opaque key handle" }
         KeyStore.getInstance(KEYSTORE).apply { load(null) }.deleteEntry(ALIAS_PREFIX + id)
     }
-
-    private fun validId(id: String?): Boolean = id != null && id.matches(Regex("^[a-f0-9]{32}$"))
 }
