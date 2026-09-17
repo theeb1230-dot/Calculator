@@ -1,5 +1,5 @@
-import 'package:calculator/features/auth/key_management.dart';
-import 'package:calculator/features/auth/platform_key_manager.dart';
+import 'package:calculator_vault/features/auth/key_management.dart';
+import 'package:calculator_vault/features/auth/platform_key_manager.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
