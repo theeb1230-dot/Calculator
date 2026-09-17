@@ -3,6 +3,7 @@ import 'package:calculator_vault/features/auth/lifecycle_lock.dart';
 import 'package:calculator_vault/features/auth/pin_auth_controller.dart';
 import 'package:calculator_vault/features/auth/protected_session.dart';
 import 'package:calculator_vault/features/auth/vault_entry_coordinator.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 final class TestPinStore implements PinEnrollmentStore {
@@ -31,7 +32,7 @@ void main() {
     final entry = VaultEntryCoordinator(auth: auth, router: AuthenticatedEqualsRouter(auth, session));
     expect(await entry.interceptEquals('654321'), isTrue);
     expect(session.isUnlocked, isTrue);
-    LifecycleLock(session).onAppBackgrounded();
+    LifecycleLockObserver(session).didChangeAppLifecycleState(AppLifecycleState.paused);
     expect(session.isUnlocked, isFalse);
   });
 }
