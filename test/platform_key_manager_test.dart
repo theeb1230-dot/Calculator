@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:calculator_vault/features/auth/key_management.dart';
 import 'package:calculator_vault/features/auth/platform_key_manager.dart';
 import 'package:flutter/services.dart';
