@@ -8,6 +8,11 @@ on:
 permissions:
   contents: write
 
+env:
+  RELEASE_VERSION: 0.3.0
+  RELEASE_BUILD: 3
+  RELEASE_FULL_VERSION: 0.3.0+3
+
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -39,10 +44,10 @@ jobs:
         run: |
           test -s build/app/outputs/flutter-apk/app-release.apk
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk dist/Calculator-Android-v0.2.0.apk
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/Calculator-Android-v${RELEASE_VERSION}.apk"
       - uses: actions/upload-artifact@v4
         with:
-          name: Calculator-Android-v0.2.0
+          name: Calculator-Android-v0.3.0
           path: dist/*.apk
           if-no-files-found: error
 
@@ -64,12 +69,12 @@ jobs:
           test -d build/ios/iphoneos/Runner.app
           mkdir -p dist/Payload
           cp -R build/ios/iphoneos/Runner.app dist/Payload/Runner.app
-          (cd dist && zip -qry Calculator-iOS-v0.2.0-UNSIGNED-no-codesign.ipa Payload)
-          test -s dist/Calculator-iOS-v0.2.0-UNSIGNED-no-codesign.ipa
+          (cd dist && zip -qry "Calculator-iOS-v${RELEASE_VERSION}-UNSIGNED-no-codesign.ipa" Payload)
+          test -s "dist/Calculator-iOS-v${RELEASE_VERSION}-UNSIGNED-no-codesign.ipa"
           rm -rf dist/Payload
       - uses: actions/upload-artifact@v4
         with:
-          name: Calculator-iOS-v0.2.0-UNSIGNED-no-codesign
+          name: Calculator-iOS-v0.3.0-UNSIGNED-no-codesign
           path: dist/*.ipa
           if-no-files-found: error
 
@@ -77,30 +82,32 @@ jobs:
     needs: [android-release, ios-release]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: release-assets
           merge-multiple: true
       - name: Verify both packages and build provenance
         run: |
-          test -s release-assets/Calculator-Android-v0.2.0.apk
-          test -s release-assets/Calculator-iOS-v0.2.0-UNSIGNED-no-codesign.ipa
+          test -s "release-assets/Calculator-Android-v${RELEASE_VERSION}.apk"
+          test -s "release-assets/Calculator-iOS-v${RELEASE_VERSION}-UNSIGNED-no-codesign.ipa"
+          grep -q '^version: 0.3.0+3$' pubspec.yaml
           cd release-assets
           sha256sum *.apk *.ipa > SHA256SUMS.txt
-          printf 'commit=%s\nref=%s\nversion=0.2.0+2\nandroid_signing=repository-default release signing; production signing NOT asserted\nios_signing=UNSIGNED/no-codesign; requires external signing and provisioning for installation\n' "$GITHUB_SHA" "$GITHUB_REF" > BUILD_PROVENANCE.txt
+          printf 'commit=%s\nref=%s\nversion=%s\nandroid_signing=repository-default release signing; production signing NOT asserted\nios_signing=UNSIGNED/no-codesign; requires external signing and provisioning for installation\n' "$GITHUB_SHA" "$GITHUB_REF" "$RELEASE_FULL_VERSION" > BUILD_PROVENANCE.txt
       - name: Publish complete GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.2.0
+          tag_name: v0.3.0
           target_commitish: ${{ github.sha }}
-          name: Calculator Vault v0.2.0
+          name: Calculator Vault v0.3.0
           files: |
-            release-assets/Calculator-Android-v0.2.0.apk
-            release-assets/Calculator-iOS-v0.2.0-UNSIGNED-no-codesign.ipa
+            release-assets/Calculator-Android-v0.3.0.apk
+            release-assets/Calculator-iOS-v0.3.0-UNSIGNED-no-codesign.ipa
             release-assets/SHA256SUMS.txt
             release-assets/BUILD_PROVENANCE.txt
           body: |
-            Calculator Vault v0.2.0 build 2, built from the exact main commit recorded in BUILD_PROVENANCE.txt.
+            Calculator Vault v0.3.0 build 3, built from the exact main commit recorded in BUILD_PROVENANCE.txt.
 
             Android APK: repository-default release signing state; production signing is NOT asserted.
             iOS IPA: UNSIGNED/no-codesign. It requires valid external signing and provisioning before installation.
