@@ -17,7 +17,11 @@ final class SecurePinEnrollmentStore implements PinEnrollmentStore {
   static const _iterations = 210000;
   static const _saltBytes = 32;
   final FlutterSecureStorage _storage;
-  final Pbkdf2 _kdf = Pbkdf2(macAlgorithm: Hmac.sha256(), iterations: _iterations, bits: 256);
+  final Pbkdf2 _kdf = Pbkdf2(
+    macAlgorithm: Hmac.sha256(),
+    iterations: _iterations,
+    bits: 256,
+  );
 
   @override
   Future<bool> get isEnrolled async {
@@ -30,9 +34,16 @@ final class SecurePinEnrollmentStore implements PinEnrollmentStore {
 
   @override
   Future<void> enroll(String pin) async {
-    final salt = Uint8List.fromList(List<int>.generate(_saltBytes, (_) => Random.secure().nextInt(256)));
+    final salt = Uint8List.fromList(
+      List<int>.generate(_saltBytes, (_) => Random.secure().nextInt(256)),
+    );
     final verifier = await _derive(pin, salt);
-    final record = jsonEncode({'v': 1, 'i': _iterations, 's': base64Encode(salt), 'd': base64Encode(verifier)});
+    final record = jsonEncode({
+      'v': 1,
+      'i': _iterations,
+      's': base64Encode(salt),
+      'd': base64Encode(verifier),
+    });
     await _storage.write(key: _recordKey, value: record);
   }
 
@@ -43,22 +54,33 @@ final class SecurePinEnrollmentStore implements PinEnrollmentStore {
       if (encoded == null) return false;
       final record = jsonDecode(encoded) as Map<String, dynamic>;
       if (record['v'] != 1 || record['i'] != _iterations) return false;
-      final actual = await _derive(candidate, base64Decode(record['s'] as String));
-      return _constantTimeEquals(actual, base64Decode(record['d'] as String));
+      final actual = await _derive(
+        candidate,
+        base64Decode(record['s'] as String),
+      );
+      return _constantTimeEquals(
+        actual,
+        base64Decode(record['d'] as String),
+      );
     } on Object {
       return false;
     }
   }
 
   Future<List<int>> _derive(String pin, List<int> salt) async {
-    final key = await _kdf.deriveKey(secretKey: SecretKey(utf8.encode(pin)), nonce: salt);
+    final key = await _kdf.deriveKey(
+      secretKey: SecretKey(utf8.encode(pin)),
+      nonce: salt,
+    );
     return key.extractBytes();
   }
 
   bool _constantTimeEquals(List<int> left, List<int> right) {
     if (left.length != right.length) return false;
     var difference = 0;
-    for (var i = 0; i < left.length; i++) difference |= left[i] ^ right[i];
+    for (var i = 0; i < left.length; i++) {
+      difference |= left[i] ^ right[i];
+    }
     return difference == 0;
   }
 }
