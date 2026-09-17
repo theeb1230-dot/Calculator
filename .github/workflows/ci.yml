@@ -57,4 +57,17 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get
       - name: Build iOS without code signing
-        run: flutter build ios --debug --no-codesign
+        run: |
+          flutter build ios --debug --no-codesign --config-only
+          xcodebuild \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Debug \
+            -sdk iphoneos \
+            -derivedDataPath build/ios_ci \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            build
+          test -d build/ios_ci/Build/Products/Debug-iphoneos/Runner.app
