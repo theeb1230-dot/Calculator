@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:calculator/features/auth/key_management.dart';
 import 'package:calculator/features/auth/platform_key_manager.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -39,18 +40,11 @@ void main() {
     final manager = PlatformVaultKeyManager(channel: channel);
     expect(
       manager.unwrapDataKey(
-        handle: const calculatorHandle,
+        handle: const VaultKeyHandle('vault-key-0123456789abcdef0123456789abcdef'),
         wrappedDataKey: Uint8List.fromList([1]),
         context: Uint8List.fromList([2]),
       ),
       throwsStateError,
     );
   });
-}
-
-const calculatorHandle = _TestHandle('vault-key-0123456789abcdef0123456789abcdef');
-
-final class _TestHandle implements dynamic {
-  const _TestHandle(this.id);
-  final String id;
 }
