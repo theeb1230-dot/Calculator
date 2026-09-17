@@ -3,8 +3,7 @@ name: Release Packages
 on:
   workflow_dispatch:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
 
 permissions:
   contents: write
@@ -41,11 +40,10 @@ jobs:
           test -s build/app/outputs/flutter-apk/app-release.apk
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-release.apk dist/Calculator-Android-v0.2.0.apk
-          sha256sum dist/Calculator-Android-v0.2.0.apk > dist/android.sha256
       - uses: actions/upload-artifact@v4
         with:
           name: Calculator-Android-v0.2.0
-          path: dist/*
+          path: dist/*.apk
           if-no-files-found: error
 
   ios-release:
@@ -68,16 +66,14 @@ jobs:
           cp -R build/ios/iphoneos/Runner.app dist/Payload/Runner.app
           (cd dist && zip -qry Calculator-iOS-v0.2.0-UNSIGNED-no-codesign.ipa Payload)
           test -s dist/Calculator-iOS-v0.2.0-UNSIGNED-no-codesign.ipa
-          shasum -a 256 dist/Calculator-iOS-v0.2.0-UNSIGNED-no-codesign.ipa > dist/ios.sha256
           rm -rf dist/Payload
       - uses: actions/upload-artifact@v4
         with:
           name: Calculator-iOS-v0.2.0-UNSIGNED-no-codesign
-          path: dist/*
+          path: dist/*.ipa
           if-no-files-found: error
 
   publish-release:
-    if: startsWith(github.ref, 'refs/tags/v')
     needs: [android-release, ios-release]
     runs-on: ubuntu-latest
     steps:
@@ -85,21 +81,26 @@ jobs:
         with:
           path: release-assets
           merge-multiple: true
-      - name: Build checksums and provenance
+      - name: Verify both packages and build provenance
         run: |
+          test -s release-assets/Calculator-Android-v0.2.0.apk
+          test -s release-assets/Calculator-iOS-v0.2.0-UNSIGNED-no-codesign.ipa
           cd release-assets
           sha256sum *.apk *.ipa > SHA256SUMS.txt
           printf 'commit=%s\nref=%s\nversion=0.2.0+2\nandroid_signing=repository-default release signing; production signing NOT asserted\nios_signing=UNSIGNED/no-codesign; requires external signing and provisioning for installation\n' "$GITHUB_SHA" "$GITHUB_REF" > BUILD_PROVENANCE.txt
       - name: Publish complete GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v0.2.0
+          target_commitish: ${{ github.sha }}
+          name: Calculator Vault v0.2.0
           files: |
-            release-assets/*.apk
-            release-assets/*.ipa
+            release-assets/Calculator-Android-v0.2.0.apk
+            release-assets/Calculator-iOS-v0.2.0-UNSIGNED-no-codesign.ipa
             release-assets/SHA256SUMS.txt
             release-assets/BUILD_PROVENANCE.txt
           body: |
-            Calculator Vault v0.2.0 build 2.
+            Calculator Vault v0.2.0 build 2, built from the exact main commit recorded in BUILD_PROVENANCE.txt.
 
-            Android APK signing state is reported in BUILD_PROVENANCE.txt; production signing is not asserted.
-            iOS IPA is explicitly UNSIGNED/no-codesign and requires valid external signing/provisioning before installation.
+            Android APK: repository-default release signing state; production signing is NOT asserted.
+            iOS IPA: UNSIGNED/no-codesign. It requires valid external signing and provisioning before installation.
