@@ -1,0 +1,105 @@
+name: Release Packages
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  android-release:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Build Android release APK
+        run: flutter build apk --release
+      - name: Verify and name APK
+        run: |
+          test -s build/app/outputs/flutter-apk/app-release.apk
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk dist/Calculator-Android-v0.2.0.apk
+          sha256sum dist/Calculator-Android-v0.2.0.apk > dist/android.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Calculator-Android-v0.2.0
+          path: dist/*
+          if-no-files-found: error
+
+  ios-release:
+    needs: verify
+    runs-on: macos-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Build iOS release without signing
+        run: flutter build ios --release --no-codesign
+      - name: Package UNSIGNED IPA
+        run: |
+          test -d build/ios/iphoneos/Runner.app
+          mkdir -p dist/Payload
+          cp -R build/ios/iphoneos/Runner.app dist/Payload/Runner.app
+          (cd dist && zip -qry Calculator-iOS-v0.2.0-UNSIGNED-no-codesign.ipa Payload)
+          test -s dist/Calculator-iOS-v0.2.0-UNSIGNED-no-codesign.ipa
+          shasum -a 256 dist/Calculator-iOS-v0.2.0-UNSIGNED-no-codesign.ipa > dist/ios.sha256
+          rm -rf dist/Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Calculator-iOS-v0.2.0-UNSIGNED-no-codesign
+          path: dist/*
+          if-no-files-found: error
+
+  publish-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [android-release, ios-release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Build checksums and provenance
+        run: |
+          cd release-assets
+          sha256sum *.apk *.ipa > SHA256SUMS.txt
+          printf 'commit=%s\nref=%s\nversion=0.2.0+2\nandroid_signing=repository-default release signing; production signing NOT asserted\nios_signing=UNSIGNED/no-codesign; requires external signing and provisioning for installation\n' "$GITHUB_SHA" "$GITHUB_REF" > BUILD_PROVENANCE.txt
+      - name: Publish complete GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-assets/*.apk
+            release-assets/*.ipa
+            release-assets/SHA256SUMS.txt
+            release-assets/BUILD_PROVENANCE.txt
+          body: |
+            Calculator Vault v0.2.0 build 2.
+
+            Android APK signing state is reported in BUILD_PROVENANCE.txt; production signing is not asserted.
+            iOS IPA is explicitly UNSIGNED/no-codesign and requires valid external signing/provisioning before installation.
